@@ -1,0 +1,28 @@
+= Background =
+
+A bunch of data about schools in Australia was released by ACARA on their www.myschool.edu.au web site. They did not release the raw data, hence I wrote a scraper and parser to take their data and convert it into a more reusable form.
+
+= Notes =
+
+I'm still tuning bugs, and I'm yet to run a full ./get.pl (because there is a lot of data downloaded). I'll probably find some more bugs when I do that run.
+
+postcodes.csv came from http://www1.auspost.com.au/download/pc-full.zip
+
+= Usage =
+
+1. Create a database and load the schema,
+
+   $ createdb myschool
+   $ psql myschool --file schema.sql
+
+2. Fill the postcode database,
+
+   $ ./add_postcodes.pl postcodes.csv
+   
+3. Run the downloader (consumes a lot of download!)
+
+   $ ./get.pl
+   
+4. Run the parser, (uses HTML in database, no redownloading. but will try to use google for geoencoding, unless you comment that out)
+
+   $ ./parser.pl
