@@ -38,9 +38,6 @@ sub parse_school_page($$$$$) {
 	my ($html, $school_url, $scrape_year, $school_name, $pc) = @_;
 	#$html = decode_utf8($html);
 	my $element;
-	my $tree = HTML::TreeBuilder->new;
-	$tree->parse($html); $tree->eof;
-	$tree->elementify();
 
 	#School facts
 	my $sector = '';
@@ -218,26 +215,43 @@ sub parse_school_page($$$$$) {
 	}
 	print "\n";
     
-   #Use Google's Geoencoding services to get a lat and long...
-   my $sleep = 0;
-GEOENC:
-   sleep $sleep;
-   
-   #ps. you should be able to get away without an api key here
-   my $google_geoenc_url = "http://maps.google.com/maps/geo?q=".uri_escape($school_name).",+".sprintf('%04s',$pc).",AUSTRALIA&output=csv&sensor=true&key=your_api_key";
-   
-   my $geoenc_res = get($google_geoenc_url) or print STDERR "Failed to fetch geoencoding.\n";
-   my ($geoenc_code, $geoenc_acc, $geoenc_lat, $geoenc_long) = split ',', $geoenc_res; #200,4,-33.8671390,151.2071140
-   if ($geoenc_code eq "200") {
-      #no problem
-      print "      Loc: $geoenc_lat, $geoenc_long\n";
-   }elsif ($geoenc_code eq "620") {
-      $sleep++;
-      print STDERR "Google Geoencoding: 620 (querying too fast)... sleeping $sleep sec.\n";
-      goto GEOENC;
+    
+    my $s = "SELECT geolocation FROM school WHERE myschool_url = ? AND geolocation is not null;";
+    my $sth = $dbh->prepare($s);
+    $sth->execute($school_url);
+    my $result = $sth->fetchrow_arrayref();
+    
+    my $geoenc_code;
+    my $geoenc_acc;
+    my $geoenc_lat;
+    my $geoenc_long;
+    
+    if (!defined $result) {    
+       #Use Google's Geoencoding services to get a lat and long...
+       my $sleep = 0;
+       GEOENC:
+       sleep $sleep;
+       
+       #ps. you should be able to get away without an api key here
+       my $google_geoenc_url = "http://maps.google.com/maps/geo?q=".uri_escape($school_name).",+".sprintf('%04s',$pc).",AUSTRALIA&output=csv&sensor=true&key=your_api_key";
+       
+       my $geoenc_res = get($google_geoenc_url) or print STDERR "Failed to fetch geoencoding.\n";
+       ($geoenc_code, $geoenc_acc, $geoenc_lat, $geoenc_long) = split ',', $geoenc_res; #200,4,-33.8671390,151.2071140
+       if ($geoenc_code eq "200") {
+          #no problem
+          print "      Loc: $geoenc_lat, $geoenc_long\n";
+       }elsif ($geoenc_code eq "620") {
+          $sleep += 10;
+          print STDERR "Google Geoencoding: 620 (querying too fast)... sleeping $sleep sec.\n";
+          goto GEOENC;
+       }else{
+          print STDERR "Geoencode $geoenc_code response.\n";
+          print STDERR "$google_geoenc_url\n";
+       }
    }else{
-      print STDERR "Geoencode $geoenc_code response.\n";
-      print STDERR "$google_geoenc_url\n";
+     ($geoenc_lat, $geoenc_long) = split ',', $result->[0];
+     $geoenc_lat =~ s/\s//g;
+     $geoenc_long =~ s/\s//g;
    }
    
 #commenting out may speed things up a little
@@ -286,43 +300,49 @@ GEOENC:
     }
 
 	#update school table
-    my $s = "UPDATE school SET sector_sys_website = ?, website = ?, year_range = ?, location = ?, geolocation = ? WHERE myschool_url = ?;";
-    my $sth = $dbh->prepare($s);
+    $s = "UPDATE school SET sector_sys_website = ?, website = ?, year_range = ?, location = ?, geolocation = ? WHERE myschool_url = ?;";
+    $sth = $dbh->prepare($s);
     $sth->execute($school_sector_website, $school_website, $year_range, $location, "$geoenc_lat, $geoenc_long", $school_url);
     
-    #insert into schoolstats table
-    $s = "INSERT INTO schoolstats VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
-    $sth = $dbh->prepare($s);
-    $sth->execute($school_url, $scrape_year, $male, $female, $indigenous_students, $stu_attendance, $teaching_staff, $fte_teaching_staff, $non_teaching_staff, $fte_non_teaching_staff, $sen_sec_cert_awarded, $completed_sen_secondary, $vet_qual, $sbat, $uni, $tafe, $emp, $icsea, $Q1, $Q2, $Q3, $Q4);
     
-    #insert into nplan table
-    for my $grade (keys %nplan) {
-        for my $area (keys %{ $nplan{$grade} }) {
-            my $score = $nplan{$grade}{$area}{0};
-            #0 is the value, rather than the average over all/similar schools
-            #the averages given in the html are discarded... but you could save them somewhere if you wanted
-            #undef is inserted as NULL which is what we want.
-            
-            #the database just has these in text, not references to another table as would be better
-            #reading, writing, spelling, grammar & punc, numeracy
-            if ($area == 0) {
-                $area = $area = 'reading';
-            }elsif ($area == 1) {
-                $area = 'writing';
-            }elsif ($area == 2) {
-                $area = 'spelling';
-            }elsif ($area == 3) {
-                $area = 'gramAndPunc';
-            }elsif ($area == 4) {
-                $area = 'numeracy';
+    $s = "SELECT school FROM schoolstats WHERE school = ?;";
+    $sth = $dbh->prepare($s);
+    $sth->execute($school_url);
+    $result = $sth->fetchrow_hashref();
+
+    if (!defined $result) {    
+        #insert into schoolstats table
+        $s = "INSERT INTO schoolstats VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
+        $sth = $dbh->prepare($s);
+        $sth->execute($school_url, $scrape_year, $male, $female, $indigenous_students, $stu_attendance, $teaching_staff, $fte_teaching_staff, $non_teaching_staff, $fte_non_teaching_staff, $sen_sec_cert_awarded, $completed_sen_secondary, $vet_qual, $sbat, $uni, $tafe, $emp, $icsea, $Q1, $Q2, $Q3, $Q4);
+        
+        #insert into nplan table
+        for my $grade (keys %nplan) {
+            for my $area (keys %{ $nplan{$grade} }) {
+                my $score = $nplan{$grade}{$area}{0};
+                #0 is the value, rather than the average over all/similar schools
+                #the averages given in the html are discarded... but you could save them somewhere if you wanted
+                #undef is inserted as NULL which is what we want.
+                
+                #the database just has these in text, not references to another table as would be better
+                #reading, writing, spelling, grammar & punc, numeracy
+                if ($area == 0) {
+                    $area = $area = 'reading';
+                }elsif ($area == 1) {
+                    $area = 'writing';
+                }elsif ($area == 2) {
+                    $area = 'spelling';
+                }elsif ($area == 3) {
+                    $area = 'gramAndPunc';
+                }elsif ($area == 4) {
+                    $area = 'numeracy';
+                }
+                
+                $s = "INSERT INTO nplan(school,year,grade,area,score) VALUES (?,?,?,?,?);";
+                $sth = $dbh->prepare($s);
+                $sth->execute($school_url, $scrape_year, $grade, $area, $score);
             }
-            
-            $s = "INSERT INTO nplan(school,year,grade,area,score) VALUES (?,?,?,?,?);";
-            $sth = $dbh->prepare($s);
-            $sth->execute($school_url, $scrape_year, $grade, $area, $score);
         }
     }
-
-	$tree->delete;
 }
 
