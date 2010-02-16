@@ -203,9 +203,23 @@ sub get_school_details($) {
 		# Check the outcome of the response
 		if ($res->is_success) {
 			print "   ::::Got page with school details ($year).\n";
-		    my $s = "INSERT INTO myschoolhtml (school, html, scrape_year) VALUES (?, ?, ?);";
-		    my $sth = $dbh->prepare($s);
-		    $sth->execute($school_url, $res->decoded_content(charset => 'none'), $year);
+			#there must be a better way. a lot of extra code here is to check that we are not
+			#adding duplicate keys, eg.
+            #Stella Maris College Manly	Combined	Non-government
+            #Stella Maris College Manly	Secondary	Non-government
+            #Both these schools are listed when you search for MANLY,NSW,2095 yet they have the
+            #same myschool URL, thus must be the same (but we are using the school type and sector from these search results, which has an error here... oh well.)
+            
+		    my $s = "SELECT school, scrape_year FROM myschoolhtml WHERE school = ? AND scrape_year = ?;";
+            my $sth = $dbh->prepare($s);
+            $sth->execute($school_url, $year);
+            my $result = $sth->fetchrow_hashref();
+
+            if (!defined $result) {
+		        $s = "INSERT INTO myschoolhtml (school, html, scrape_year) VALUES (?, ?, ?);";
+		        $sth = $dbh->prepare($s);
+		        $sth->execute($school_url, $res->decoded_content(charset => 'none'), $year);
+		    }
 		}else {
 			print "   ::::GET of page failed.\n";
 		}

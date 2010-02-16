@@ -4,8 +4,6 @@ A bunch of data about schools in Australia was released by ACARA on their www.my
 
 = Notes =
 
-I'm still tuning bugs, and I'm yet to run a full ./get.pl (because there is a lot of data downloaded). I'll probably find some more bugs when I do that run.
-
 postcodes.csv came from http://www1.auspost.com.au/download/pc-full.zip
 
 = Usage =
