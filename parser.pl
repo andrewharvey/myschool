@@ -219,8 +219,8 @@ sub parse_school_page($$$$$) {
 	print "\n";
     
    #Use Google's Geoencoding services to get a lat and long...
-GEOENC:
    my $sleep = 0;
+GEOENC:
    sleep $sleep;
    
    #ps. you should be able to get away without an api key here
