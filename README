@@ -6,6 +6,10 @@ A bunch of data about schools in Australia was released by ACARA on their www.my
 
 postcodes.csv came from http://www1.auspost.com.au/download/pc-full.zip
 
+When using the data keep in mind of the footnote for the Student attendance rate. "For Victorian government schools this data is calculated using Prep to Year 12 data for the full 2008 year and is not directly comparable to others."
+
+Currently if you run the parser more than once, you will probably get an error about "duplicate key value violates unique constraint"... I only plan on running the parser once so I clean out the schoolstats table before I rerun.
+
 = Usage =
 
 1. Create a database and load the schema,

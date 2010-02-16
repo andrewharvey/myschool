@@ -194,19 +194,43 @@ sub parse_school_page($$$$$) {
 		$school_sector_website = $1;
 		$school_sector = $2;
 	}
+	
+	#NPLAN
+    #I could add in more checks to parse the html and look for concistancy in the table names, etc. but I feel this is sufficient.
 
+	#span id in the form SPResult_x_y_z
+	#where,
+	# x is the year (eg. year 3, year 7...)
+	# y is the assessment area (eg. reading, writing, spelling, grammar & punc, numeracy...)
+	# z 0=school's result, 1=SIM (statistically similar schools), 2=ALL (all schools)
+	
+	my %nplan;
+	print "      NPLAN:\n";
+	foreach my $nplan_grade  (3,5,7,9) { #x
+	    foreach my $nplan_test (0..4) { #y
+	        foreach my $nplan_num (0..3) { #z
+    	    	if ($html =~ /<span id="ctl00_ContentPlaceHolder1_SchoolProfileUserControl_SPResult_${nplan_grade}_${nplan_test}_${nplan_num}" class="SPResult">(\d*)<\/span>/) {
+	                $nplan{$nplan_grade}{$nplan_test}{$nplan_num} = $1;
+	                print "      Year $nplan_grade $nplan_test = $1\n";
+	            }
+	        }
+	    }
+	}
+	print "\n";
+    
    #Use Google's Geoencoding services to get a lat and long...
 GEOENC:
    my $sleep = 0;
    sleep $sleep;
    
+   #ps. you should be able to get away without an api key here
    my $google_geoenc_url = "http://maps.google.com/maps/geo?q=".uri_escape($school_name).",+".sprintf('%04s',$pc).",AUSTRALIA&output=csv&sensor=true&key=your_api_key";
    
    my $geoenc_res = get($google_geoenc_url) or print STDERR "Failed to fetch geoencoding.\n";
    my ($geoenc_code, $geoenc_acc, $geoenc_lat, $geoenc_long) = split ',', $geoenc_res; #200,4,-33.8671390,151.2071140
    if ($geoenc_code eq "200") {
       #no problem
-      #print "      Loc: $geoenc_lat, $geoenc_long\n";
+      print "      Loc: $geoenc_lat, $geoenc_long\n";
    }elsif ($geoenc_code eq "620") {
       $sleep++;
       print STDERR "Google Geoencoding: 620 (querying too fast)... sleeping $sleep sec.\n";
@@ -256,7 +280,7 @@ GEOENC:
 	print "\n\n";
 #=cut
 
-    #hmm seems it doesn't like it when and integer type is given as ''.
+    #hmm seems it doesn't like it when an integer type is given as ''.
     for ($year_range, $total_enrolments, $female, $male, $fte_enrolments, $indigenous_students, $location, $stu_attendance, $teaching_staff, $fte_teaching_staff, $non_teaching_staff, $fte_non_teaching_staff, $icsea, $Q1, $Q2, $Q3, $Q4, $sen_sec_cert_awarded, $completed_sen_secondary, $vet_qual, $sbat, $uni, $tafe, $emp, $school_website, $school_sector_website, $school_sector, $geoenc_lat, $geoenc_long, $school_url) {
        $_ = undef if ($_ eq '');
     }
@@ -272,23 +296,33 @@ GEOENC:
     $sth->execute($school_url, $scrape_year, $male, $female, $indigenous_students, $stu_attendance, $teaching_staff, $fte_teaching_staff, $non_teaching_staff, $fte_non_teaching_staff, $sen_sec_cert_awarded, $completed_sen_secondary, $vet_qual, $sbat, $uni, $tafe, $emp, $icsea, $Q1, $Q2, $Q3, $Q4);
     
     #insert into nplan table
-    #TODO
-    
-    
-#        for ($year_range, $total_enrolments, $female, $male, $fte_enrolments, $indigenous_students, $location, $stu_attendance, $teaching_staff, $fte_teaching_staff, $non_teaching_staff, $fte_non_teaching_staff, $icsea, $Q1, $Q2, $Q3, $Q4, $sen_sec_cert_awarded, $completed_sen_secondary, $vet_qual, $sbat, $uni, $tafe, $emp, $school_website, $school_sector_website, $school_sector, $geoenc_lat, $geoenc_long, $school_url) {
-#       $_ = '' if (!defined $_);
-#    }
-	
-#	use HTML::TableExtract;
-#	my $te = HTML::TableExtract->new();
-#	$te->parse($school_facts->as_HTML);
-                         
-#	foreach my $ts ($te->tables) {
-#		print "Table (", join(',', $ts->coords), "):\n";
-#		foreach my $row ($ts->rows) {
-#			print join(',', @$row), "\n";
-#		}
-#	}
+    for my $grade (keys %nplan) {
+        for my $area (keys %{ $nplan{$grade} }) {
+            my $score = $nplan{$grade}{$area}{0};
+            #0 is the value, rather than the average over all/similar schools
+            #the averages given in the html are discarded... but you could save them somewhere if you wanted
+            #undef is inserted as NULL which is what we want.
+            
+            #the database just has these in text, not references to another table as would be better
+            #reading, writing, spelling, grammar & punc, numeracy
+            if ($area == 0) {
+                $area = $area = 'reading';
+            }elsif ($area == 1) {
+                $area = 'writing';
+            }elsif ($area == 2) {
+                $area = 'spelling';
+            }elsif ($area == 3) {
+                $area = 'gramAndPunc';
+            }elsif ($area == 4) {
+                $area = 'numeracy';
+            }
+            
+            $s = "INSERT INTO nplan(school,year,grade,area,score) VALUES (?,?,?,?,?);";
+            $sth = $dbh->prepare($s);
+            $sth->execute($school_url, $scrape_year, $grade, $area, $score);
+        }
+    }
 
 	$tree->delete;
 }
+

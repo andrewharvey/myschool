@@ -92,5 +92,5 @@ CREATE TABLE nplan (
 	area       text,
 	score      integer,
 	
-	PRIMARY KEY (school, year)
+	PRIMARY KEY (school, year, grade, area)
 );
