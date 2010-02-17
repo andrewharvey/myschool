@@ -1,14 +1,24 @@
 = Background =
 
-A bunch of data about schools in Australia was released by ACARA on their www.myschool.edu.au web site. They did not release the raw data, hence I wrote a scraper and parser to take their data and convert it into a more reusable form.
+A bunch of data about schools in Australia was released by ACARA on their
+www.myschool.edu.au web site. They did not release the raw data, hence I wrote a
+scraper and parser to take their data and convert it into a more reusable form.
 
 = Notes =
 
 postcodes.csv came from http://www1.auspost.com.au/download/pc-full.zip
 
-When using the data keep in mind of the footnote for the Student attendance rate. "For Victorian government schools this data is calculated using Prep to Year 12 data for the full 2008 year and is not directly comparable to others."
+When using the data keep in mind of the footnote for the Student attendance
+rate. "For Victorian government schools this data is calculated using Prep to
+Year 12 data for the full 2008 year and is not directly comparable to others."
 
-Currently if you run the parser more than once, you will probably get an error about "duplicate key value violates unique constraint"... I only plan on running the parser once so I clean out the schoolstats table before I rerun.
+I have provided some tab separated value files of most of the database tables
+filled with data. I am under the impression that this is legal as per Telstra 
+Corporation Limited v Phone Directories Company Pty Ltd [2010] FCA 44
+http://www.austlii.edu.au/au/cases/cth/FCA/2010/44.html
+
+The geolocation may or may not be accurate, the same goes for the rest of the 
+data in those data files provided.
 
 = Usage =
 
@@ -25,6 +35,8 @@ Currently if you run the parser more than once, you will probably get an error a
 
    $ ./get.pl
    
-4. Run the parser, (uses HTML in database, no redownloading. but will try to use google for geoencoding, unless you comment that out)
+4. Run the parser, (uses HTML in database, no redownloading. but will try to use
+google for geoencoding, unless you comment that out. This process may consume a
+lot of RAM.)
 
    $ ./parser.pl

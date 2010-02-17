@@ -29,9 +29,9 @@ my $dbh = DBI->connect("DBI:Pg:dbname=$dbname;host=$dbhost", "$dbuser", "$dbpass
 my $s = "SELECT h.html, h.school, h.scrape_year, s.name, s.postcode FROM myschoolhtml h, school s WHERE h.school = s.myschool_url;";
 my $sth = $dbh->prepare($s);
 $sth->execute();
-while ( my @row = $sth->fetchrow_array() ){
-	print $row[3]."\n";
-	parse_school_page($row[0], $row[1], $row[2], $row[3], $row[4]);
+while ( my $row = $sth->fetchrow_arrayref() ){
+	print $row->[3]."\n";
+	parse_school_page($row->[0], $row->[1], $row->[2], $row->[3], $row->[4]);
 }
 
 sub parse_school_page($$$$$) {
@@ -223,8 +223,8 @@ sub parse_school_page($$$$$) {
     
     my $geoenc_code;
     my $geoenc_acc;
-    my $geoenc_lat;
-    my $geoenc_long;
+    my $geoenc_lat = '';
+    my $geoenc_long = '';
     
     if (!defined $result) {    
        #Use Google's Geoencoding services to get a lat and long...
@@ -233,6 +233,8 @@ sub parse_school_page($$$$$) {
        sleep $sleep;
        
        #ps. you should be able to get away without an api key here
+       #hmm. it seems in some cases its better to leave out the post code.
+       #i think if it cannot find the school it will just give the location of the postcode instead
        my $google_geoenc_url = "http://maps.google.com/maps/geo?q=".uri_escape($school_name).",+".sprintf('%04s',$pc).",AUSTRALIA&output=csv&sensor=true&key=your_api_key";
        
        my $geoenc_res = get($google_geoenc_url) or print STDERR "Failed to fetch geoencoding.\n";
@@ -241,20 +243,18 @@ sub parse_school_page($$$$$) {
           #no problem
           print "      Loc: $geoenc_lat, $geoenc_long\n";
        }elsif ($geoenc_code eq "620") {
-          $sleep += 10;
-          print STDERR "Google Geoencoding: 620 (querying too fast)... sleeping $sleep sec.\n";
+          $sleep += 5;
+          print "      Google Geoencoding: 620 (querying too fast)... sleeping $sleep sec.\n";
           goto GEOENC;
        }else{
-          print STDERR "Geoencode $geoenc_code response.\n";
-          print STDERR "$google_geoenc_url\n";
+          print "Geoencode $geoenc_code response ($google_geoenc_url).\n";
        }
    }else{
-     ($geoenc_lat, $geoenc_long) = split ',', $result->[0];
-     $geoenc_lat =~ s/\s//g;
-     $geoenc_long =~ s/\s//g;
+       ($geoenc_lat, $geoenc_long) = split ',', $result->[0];
+       $geoenc_lat =~ s/\s//g;
+       $geoenc_long =~ s/\s//g;
    }
    
-#commenting out may speed things up a little
 #=comment
 	#Print Results	
 	print "      School Sector: $sector\n";
@@ -294,15 +294,23 @@ sub parse_school_page($$$$$) {
 	print "\n\n";
 #=cut
 
+
+    my $geolocation;
+    if ($geoenc_lat eq '' || $geoenc_long eq '') {
+        $geolocation = undef;
+    }else{
+        $geolocation = "$geoenc_lat,$geoenc_long";
+    }
+    
     #hmm seems it doesn't like it when an integer type is given as ''.
-    for ($year_range, $total_enrolments, $female, $male, $fte_enrolments, $indigenous_students, $location, $stu_attendance, $teaching_staff, $fte_teaching_staff, $non_teaching_staff, $fte_non_teaching_staff, $icsea, $Q1, $Q2, $Q3, $Q4, $sen_sec_cert_awarded, $completed_sen_secondary, $vet_qual, $sbat, $uni, $tafe, $emp, $school_website, $school_sector_website, $school_sector, $geoenc_lat, $geoenc_long, $school_url) {
+    for ($year_range, $total_enrolments, $female, $male, $fte_enrolments, $indigenous_students, $location, $stu_attendance, $teaching_staff, $fte_teaching_staff, $non_teaching_staff, $fte_non_teaching_staff, $icsea, $Q1, $Q2, $Q3, $Q4, $sen_sec_cert_awarded, $completed_sen_secondary, $vet_qual, $sbat, $uni, $tafe, $emp, $school_website, $school_sector_website, $school_sector, $school_url) {
        $_ = undef if ($_ eq '');
     }
 
 	#update school table
     $s = "UPDATE school SET sector_sys_website = ?, website = ?, year_range = ?, location = ?, geolocation = ? WHERE myschool_url = ?;";
     $sth = $dbh->prepare($s);
-    $sth->execute($school_sector_website, $school_website, $year_range, $location, "$geoenc_lat, $geoenc_long", $school_url);
+    $sth->execute($school_sector_website, $school_website, $year_range, $location, $geolocation, $school_url);
     
     
     $s = "SELECT school FROM schoolstats WHERE school = ?;";
