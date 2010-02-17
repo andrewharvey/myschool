@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://earth.google.com/kml/2.1">
+ <Folder>
+  <name>MySchool Data</name>
+  <open>1</open>
+  <Snippet></Snippet>
+  <description>(Unofficial) MySchool Data</description>
+  <NetworkLink>
+   <name>Government</name>
+   <visibility>1</visibility>
+   <open>0</open>
+   <Link>
+    <href>http://host/myschool_kml.pl?f=gov</href>
+    <viewRefreshMode>onStop</viewRefreshMode>
+    <viewRefreshTime>1</viewRefreshTime>
+    <viewFormat>BBOX=[bboxWest],[bboxSouth],[bboxEast],[bboxNorth]&amp;VIEWSIZE=[horizPixels]x[vertPixels]</viewFormat>
+   </Link>
+  </NetworkLink>
+  <NetworkLink>
+   <name>Non-Government</name>
+   <visibility>1</visibility>
+   <open>0</open>
+   <Link>
+    <href>http://host/myschool_kml.pl?f=nongov</href>
+    <viewRefreshMode>onStop</viewRefreshMode>
+    <viewRefreshTime>1</viewRefreshTime>
+    <viewFormat>BBOX=[bboxWest],[bboxSouth],[bboxEast],[bboxNorth]&amp;VIEWSIZE=[horizPixels]x[vertPixels]</viewFormat>
+   </Link>
+  </NetworkLink>
+ </Folder>
+</kml>
+

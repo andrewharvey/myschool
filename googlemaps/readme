@@ -1,0 +1,7 @@
+Eg. use the url
+http://maps.google.com/maps?q=http://host/main.kml
+
+main.kml contains details about how to query the CGI script, myschool_kml.pl
+
+Not complete, you need to host the files somewhere if you want to use it in Google Maps.
+Though you can still use the CGI script to generate a KML file viewable in many mapping applications.
