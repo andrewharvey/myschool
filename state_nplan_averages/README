@@ -1,0 +1,11 @@
+Method I used to generate the files in datafiles
+
+1.
+    ./graph_aus_states.pl datafiles/*.csv
+
+2. 
+    Change query.sql then run
+    psql -f query.sql -F ',' -A -t -o YYYY_grade_area.csv myschool
+    
+3. 
+    for f in datafiles/*.svg ; do rsvg -f png -h 300 "$f" "$f.png"; done
