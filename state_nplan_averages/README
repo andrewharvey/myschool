@@ -9,3 +9,6 @@ Method I used to generate the files in datafiles
     
 3. 
     for f in datafiles/*.svg ; do rsvg -f png -h 300 "$f" "$f.png"; done
+    
+Please not that the numbers I get from the database I have do not exactly match
+those averages reported in reports on the NPLAN website.
